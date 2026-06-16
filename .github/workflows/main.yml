@@ -7,9 +7,7 @@ on:
       - Dev
 
 env:
-  BUILD_CONFIGURATION: Release
-  AZURE_WEBAPP_NAME: myapi-app-ramu
-  SOLUTION_FILE: ./MyApi.sln   # 👈 CHANGE THIS
+  PROJECT_FILE: ./MyApi/MyApi.csproj
 
 jobs:
 
@@ -27,16 +25,13 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Restore Packages
-      run: dotnet restore $SOLUTION_FILE
+      run: dotnet restore **/*.sln
 
     - name: Build Project
-      run: dotnet build $SOLUTION_FILE --configuration $BUILD_CONFIGURATION
+      run: dotnet build **/*.sln --configuration $BUILD_CONFIGURATION
 
     - name: Publish Project
-      run: |
-        dotnet publish $SOLUTION_FILE \
-        --configuration $BUILD_CONFIGURATION \
-        --output ./publish
+      run: dotnet publish **/*.csproj --configuration $BUILD_CONFIGURATION --output ./publish
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
