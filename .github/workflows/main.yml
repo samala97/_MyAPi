@@ -24,9 +24,6 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
-    - name: Restore Packages
-      run: dotnet restore **/*.sln
-
     - name: Build Project
       run: dotnet build **/*.sln --configuration $BUILD_CONFIGURATION
 
@@ -35,6 +32,11 @@ jobs:
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
+      with:
+        name: drop
+        path: ./publish
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
       with:
         name: drop
         path: ./publish
