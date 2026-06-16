@@ -1,0 +1,43 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+
+# Install .NET
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    version: '8.0.x'
+
+# Restore
+- script: dotnet restore MyApi/MyApi.csproj
+  displayName: Restore
+
+# Build
+- script: dotnet build MyApi/MyApi.csproj --configuration $(buildConfiguration)
+  displayName: Build
+
+# Publish (creates deployable files)
+- script: dotnet publish MyApi/MyApi.csproj --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)
+  displayName: Publish
+
+# Archive into ZIP
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/myapi.zip'
+    replaceExistingArchive: true
+
+    - task: AzureWebApp@1
+  inputs:
+    azureSubscription: 'Azure-Service-Connection'
+    appName: 'myapi-app-ramu'
+    package: '$(Build.ArtifactStagingDirectory)/myapi.zip'

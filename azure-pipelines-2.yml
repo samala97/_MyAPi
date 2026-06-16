@@ -1,0 +1,124 @@
+trigger:
+- Dev
+
+pool:
+  name: rishipool
+
+variables:
+  buildConfiguration: 'Release'
+  artifactName: 'drop'
+  packageName: 'WebApp.zip'
+
+stages:
+
+# ================= BUILD STAGE =================
+- stage: Build
+  displayName: 'Build Stage'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build .NET 8 App'
+    steps:
+
+    - task: UseDotNet@2
+      displayName: 'Install .NET 8 SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore Packages'
+      inputs:
+        command: 'restore'
+        projects: '**/*.sln'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Build Project'
+      inputs:
+        command: 'build'
+        projects: '**/*.sln'
+        arguments: '--configuration $(buildConfiguration)'
+
+    # ✅ Publish and ZIP (IMPORTANT)
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish Project'
+      inputs:
+        command: 'publish'
+        publishWebProjects: true
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+        zipAfterPublish: true
+
+    # ✅ Publish Artifact
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifacts'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: '$(artifactName)'
+        publishLocation: 'Container'
+
+
+# ================= DEPLOY STAGE =================
+- stage: Deploy
+  displayName: 'Deploy to IIS'
+  dependsOn: Build
+  condition: succeeded()
+
+  jobs:
+  - deployment: DeployIIS
+    displayName: 'Deploy to VM IIS'
+
+    environment:
+      name: 'DEV'
+      resourceType: VirtualMachine
+
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: '$(artifactName)'
+              downloadPath: '$(Pipeline.Workspace)'
+
+          # ✅ Create/Update IIS Website
+          - task: IISWebAppManagementOnMachineGroup@0
+            displayName: 'Create IIS Website'
+            inputs:
+              IISDeploymentType: 'IISWebsite'
+              ActionIISWebsite: 'CreateOrUpdateWebsite'
+              WebsiteName: 'MyIISWebsite'
+              WebsitePhysicalPath: 'C:\inetpub\wwwroot\MyIISWebsite'
+              WebsitePhysicalPathAuth: 'WebsiteUserPassThrough'
+              CreateOrUpdateAppPoolForWebsite: true
+              AppPoolNameForWebsite: 'MyIISWebsite'
+              DotNetVersionForWebsite: 'No Managed Code'
+              PipeLineModeForWebsite: 'Integrated'
+              AppPoolIdentityForWebsite: 'ApplicationPoolIdentity'
+          - task: IISWebAppManagementOnMachineGroup@0
+            displayName: 'Create IIS Application'
+            inputs:
+              IISDeploymentType: 'IISWebApplication'
+              ParentWebsiteNameForApplication: 'MyIISWebsite'
+              VirtualPathForApplication: '/Rishi12'   # ✅ FIXED
+              PhysicalPathForApplication: 'C:\inetpub\wwwroot\Rishi12'
+          - task: IISWebAppManagementOnMachineGroup@0
+            inputs:
+              IISDeploymentType: 'IISWebsite'
+              ActionIISWebsite: 'StopWebsite'
+              StartStopWebsiteName: 'MyIISWebsite'
+          # ✅ Deploy to IIS (Correct Package Path)
+          - task: IISWebAppDeploymentOnMachineGroup@0
+            displayName: 'Deploy Web App to IIS'
+            inputs:
+              WebSiteName: 'MyIISWebsite'
+              VirtualApplication: 'Rishi12'   # ✅ IMPORTANT
+              Package: '$(Pipeline.Workspace)/$(artifactName)/**/*.zip'
+              TakeAppOfflineFlag: true
+              RemoveAdditionalFilesFlag: true
+          - task: IISWebAppManagementOnMachineGroup@0
+            inputs:
+              IISDeploymentType: 'IISWebsite'
+              ActionIISWebsite: 'StartWebsite'
+              StartStopWebsiteName: 'MyIISWebsite'
