@@ -7,7 +7,9 @@ on:
       - Dev
 
 env:
+  BUILD_CONFIGURATION: Release
   PROJECT_FILE: ./MyApi/MyApi.csproj
+  AZURE_WEBAPP_NAME: myapi-app-ramu
 
 jobs:
 
@@ -25,18 +27,15 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Build Project
-      run: dotnet build **/*.sln --configuration $BUILD_CONFIGURATION
+      run: dotnet build $PROJECT_FILE --configuration $BUILD_CONFIGURATION
 
     - name: Publish Project
-      run: dotnet publish **/*.csproj --configuration $BUILD_CONFIGURATION --output ./publish
+      run: dotnet publish $PROJECT_FILE --configuration $BUILD_CONFIGURATION --output ./publish
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: drop
         path: ./publish
-    - name: Download Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: drop
-        path: ./publish
+
+
