@@ -36,3 +36,8 @@ jobs:
       with:
         name: drop
         path: ./publish
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: drop
+        path: ./downloaded-publish
